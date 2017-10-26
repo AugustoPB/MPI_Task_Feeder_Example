@@ -1,14 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "mpi.h"
 
 
 #define TASK_TAG 1
 #define FINISH_TAG 2
 
-#define N_TAREFAS 1000  // Numero de tarefas no saco de trabalho
-#define TAM_TAREFA 100000   // Tamanho de vetor a ser organizado pelos nodos
+#define N_TAREFAS 100  // Numero de tarefas no saco de trabalho
+#define TAM_TAREFA 10000   // Tamanho de vetor a ser organizado pelos nodos
 
 
 
@@ -28,7 +29,7 @@ int main(int argc, char** argv)
     int my_rank;       // Identificador deste processo
     int proc_n;        // Numero de processos disparados pelo usuário na linha de comando (np)
     MPI_Status status; // estrutura que guarda o estado de retorno
-    double t1, t2;
+    clock_t t1, t2;
 
     MPI_Init(&argc , &argv); // funcao que inicializa o MPI, todo o código paralelo esta abaixo
 
@@ -42,12 +43,12 @@ int main(int argc, char** argv)
         int remaning_tasks = N_TAREFAS;
         int completed_tasks = 0;
         int (*tasks)[TAM_TAREFA] = malloc (N_TAREFAS * sizeof *tasks);
-        
+
         initialize_matrix(tasks);
 
         // first iteration
-        t1 = MPI_Wtime();
-        printf("Begin time: %lf\n", t1);
+        t1 = clock();
+        printf("Begin time: %lf\n", (double)t1/CLOCKS_PER_SEC);
         int i;
         for(i=1; (i<proc_n)&&(remaning_tasks > proc_n-1); i++)
         {
@@ -73,9 +74,9 @@ int main(int argc, char** argv)
                 MPI_Send(&completed_tasks, 1, MPI_INT, status.MPI_SOURCE, FINISH_TAG, MPI_COMM_WORLD);
             }
         }
-        t2 = MPI_Wtime();
-        printf("Final time: %lf\n", t2);
-        printf("Run time: %lf\n", t2-t1);
+        t2 = clock();
+        printf("Final time: %lf\n", (double)t2/CLOCKS_PER_SEC);
+        printf("Run time: %lf\n", (double)(t2-t1)/CLOCKS_PER_SEC);
         free(tasks);
     }
     else
@@ -84,7 +85,7 @@ int main(int argc, char** argv)
         int *message;
         //message = malloc(TAM_TAREFA * sizeof(int));
         while(1)
-        {   
+        {
             MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
             if(status.MPI_TAG == FINISH_TAG)
