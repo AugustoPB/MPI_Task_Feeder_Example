@@ -30,8 +30,9 @@ void bs(int n, int * vetor)
 
 void initialize_matrix(int matrix[N_TAREFAS][TAM_TAREFA])
 {
-    for(int i=0; i<N_TAREFAS; i++)
-        for(int j=0; j<TAM_TAREFA; j++) matrix[i][j] = TAM_TAREFA-j;
+    int i,j;
+    for(i=0; i<N_TAREFAS; i++)
+        for(j=0; j<TAM_TAREFA; j++) matrix[i][j] = TAM_TAREFA-j;
 }
 
 int main(int argc, char** argv)
@@ -58,7 +59,8 @@ int main(int argc, char** argv)
         // first iteration
         t1 = MPI_Wtime();
         printf("Begin time: %lf\n", t1);
-        for(int i=1; (i<proc_n)&&(remaning_tasks > proc_n-1); i++)
+        int i;
+        for(i=1; (i<proc_n)&&(remaning_tasks > proc_n-1); i++)
         {
             MPI_Send(tasks[N_TAREFAS-remaning_tasks], TAM_TAREFA, MPI_INT, i, TASK_TAG, MPI_COMM_WORLD);
             org_vector[i] = N_TAREFAS-remaning_tasks;
