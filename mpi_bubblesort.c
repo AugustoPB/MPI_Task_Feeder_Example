@@ -6,8 +6,8 @@
 #define TASK_TAG 1
 #define FINISH_TAG 2
 
-#define N_TAREFAS 100  // Numero de tarefas no saco de trabalho
-#define TAM_TAREFA 10000   // Tamanho de vetor a ser organizado pelos nodos
+#define N_TAREFAS 1000  // Numero de tarefas no saco de trabalho
+#define TAM_TAREFA 100000   // Tamanho de vetor a ser organizado pelos nodos
 
 void bs(int n, int * vetor)
 {

@@ -1,46 +1,108 @@
-#define TAREFAS 7; // Numero de tarefas no saco de trabalho para np = 8, processo 0 é o mestre
-
-int my_rank;       // Identificador deste processo
-int proc_n;        // Numero de processos disparados pelo usuário na linha de comando (np)
-int message;       // Buffer para as mensagens 
-int saco[TAREFAS]; // saco de trabalho
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "mpi.h"
 
 
-MPI_Init(); // funcao que inicializa o MPI, todo o código paralelo esta abaixo
+#define TASK_TAG 1
+#define FINISH_TAG 2
 
-my_rank = MPI_Comm_rank();  // pega pega o numero do processo atual (rank)
-proc_n  = MPI_Comm_size();  // pega informação do numero de processos (quantidade total)
+#define N_TAREFAS 1000  // Numero de tarefas no saco de trabalho
+#define TAM_TAREFA 100000   // Tamanho de vetor a ser organizado pelos nodos
 
-if ( my_rank == 0 ) // qual o meu papel: sou o mestre ou um dos escravos?
-   {
-   // papel do mestre
 
-   for ( i=0 ; i < TAREFAS ; i++) // mando o trabalho para os escravos fazerem
-       {
-       message = saco[i];
-       MPI_Send(&message, i+1); // envio trabalho saco[i] para escravo com id = i+1;
-       } 
 
-    // recebo o resultado
+void initialize_matrix(int matrix[N_TAREFAS][TAM_TAREFA])
+{
+    int i,j;
+    for(i=0; i<N_TAREFAS; i++)
+        for(j=0; j<TAM_TAREFA; j++) matrix[i][j] = TAM_TAREFA-j;
+}
 
-    for ( i=0 ; i < TAREFAS ; i++)
+int cmpfunc (const void * a, const void * b) {
+    return ( *(int*)a - *(int*)b );
+ }
+
+int main(int argc, char** argv)
+{
+    int my_rank;       // Identificador deste processo
+    int proc_n;        // Numero de processos disparados pelo usuário na linha de comando (np)
+    MPI_Status status; // estrutura que guarda o estado de retorno
+    double t1, t2;
+
+    MPI_Init(&argc , &argv); // funcao que inicializa o MPI, todo o código paralelo esta abaixo
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);  // pega pega o numero do processo atual (rank)
+    MPI_Comm_size(MPI_COMM_WORLD, &proc_n); // pega informação do numero de processos (quantidade total)
+
+    if ( my_rank == 0 ) // qual o meu papel: sou o mestre ou um dos escravos?
+    {   // papel do mestre
+
+        int *org_vector = malloc(proc_n* sizeof(int));
+        int remaning_tasks = N_TAREFAS;
+        int completed_tasks = 0;
+        int (*tasks)[TAM_TAREFA] = malloc (N_TAREFAS * sizeof *tasks);
+        
+        initialize_matrix(tasks);
+
+        // first iteration
+        t1 = MPI_Wtime();
+        printf("Begin time: %lf\n", t1);
+        int i;
+        for(i=1; (i<proc_n)&&(remaning_tasks > proc_n-1); i++)
         {
-        // recebo mensagens de qualquer emissor e com qualquer etiqueta (TAG)
-
-        MPI_Recv(&message, MPI_ANY_SOURCE, MPI_ANY_TAG, status);  // recebo por ordem de chegada com any_source
-
-        saco[status.MPI_SOURCE-1] = message;   // coloco mensagem no saco na posição do escravo emissor
+            MPI_Send(tasks[N_TAREFAS-remaning_tasks], TAM_TAREFA, MPI_INT, i, TASK_TAG, MPI_COMM_WORLD);
+            org_vector[i] = N_TAREFAS-remaning_tasks;
+            remaning_tasks--;
         }
-     }              
-else               
-     {
-     // papel do escravo
 
-     MPI_Recv(&message, 0);    // recebo do mestre
+        while(completed_tasks < N_TAREFAS)
+        {
+            MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+            MPI_Recv(tasks[org_vector[status.MPI_SOURCE]], TAM_TAREFA, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+            completed_tasks++;
 
-     message = message+1;      // icremento conteúdo da mensagem
+            if(remaning_tasks)
+            {
+                MPI_Send(tasks[N_TAREFAS-remaning_tasks], TAM_TAREFA, MPI_INT, status.MPI_SOURCE, TASK_TAG, MPI_COMM_WORLD);
+                org_vector[status.MPI_SOURCE] = N_TAREFAS-remaning_tasks;
+                remaning_tasks--;
+            }
+            else
+            {
+                MPI_Send(&completed_tasks, 1, MPI_INT, status.MPI_SOURCE, FINISH_TAG, MPI_COMM_WORLD);
+            }
+        }
+        t2 = MPI_Wtime();
+        printf("Final time: %lf\n", t2);
+        printf("Run time: %lf\n", t2-t1);
+        free(tasks);
+    }
+    else
+    {// papel do escravo
 
-     MPI_Send(&message, 0);    // retorno resultado para o mestre
+        int *message;
+        //message = malloc(TAM_TAREFA * sizeof(int));
+        while(1)
+        {   
+            MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+            if(status.MPI_TAG == FINISH_TAG)
+            {
+                MPI_Finalize();
+                //free(message);
+                return 0;
+            }
+            message = malloc(TAM_TAREFA * sizeof(int));
+            MPI_Recv(message, TAM_TAREFA, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);    // recebo do mestre
+
+            //printf("sorting : %d\n", message[0]);
+            qsort(message,TAM_TAREFA, sizeof(int), cmpfunc);
+            //printf("sorted : %d\n", message[0]);
+
+            MPI_Send(message, TAM_TAREFA, MPI_INT, 0, TASK_TAG, MPI_COMM_WORLD);
+            free(message);
+        }
      }
-
-MPI_Finalize();
+     MPI_Finalize();
+}
