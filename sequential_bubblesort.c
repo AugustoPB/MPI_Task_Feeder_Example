@@ -3,8 +3,8 @@
 #include <string.h>
 #include <time.h>
 
-#define N_TAREFAS 100  // Numero de tarefas no saco de trabalho
-#define TAM_TAREFA 10000   // Tamanho de vetor a ser organizado pelos nodos
+#define N_TAREFAS 1000  // Numero de tarefas no saco de trabalho
+#define TAM_TAREFA 25000   // Tamanho de vetor a ser organizado pelos nodos
 
 void bs(int n, int * vetor)
 {
@@ -39,14 +39,14 @@ int main(int argc, char** argv)
     initialize_matrix(tasks);
 
     t1 = clock();
-    printf("Begin time: %lf\n", (double)t1/CLOCKS_PER_SEC);
+    //printf("Begin time: %lf\n", (double)t1/CLOCKS_PER_SEC);
     int i;
     for(i=0; i<N_TAREFAS; i++)
         bs(TAM_TAREFA, tasks[i]);
 
     t2 = clock();
-    printf("Final time: %lf\n", (double)t2/CLOCKS_PER_SEC);
+    //printf("Final time: %lf\n", (double)t2/CLOCKS_PER_SEC);
     printf("Run time: %lf\n", (double)(t2-t1)/CLOCKS_PER_SEC);
-
-
+    
+    return 0;
 }
